@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { StoryFormSchema, storyFormSchema } from '@/lib/validation';
-import { SLIDE_LIMITS } from '@/lib/constants';
-import { mockGenerateStory } from '@/lib/api';
+import { CATEGORIES, SLIDE_LIMITS, TEMPLATES } from '@/lib/constants';
+import { generateStory } from '@/lib/api';
 import { GeneratedStory } from '@/lib/types';
 import { Navigation } from '@/components/story-generator/navigation';
 import { StoryConfiguration } from '@/components/story-generator/story-configuration';
@@ -28,12 +28,15 @@ export default function Home() {
     resolver: zodResolver(storyFormSchema),
     defaultValues: {
       mode: 'news',
-      template: 'news-standard',
-      category: 'news-technology',
+      template: 'test-news-1',
+      category: 'News',
       slideCount: 8,
       voiceEngine: 'azure',
+      voiceId: '',
       inputMode: 'single',
       singleInput: '',
+      slideStoryTitle: '',
+      slideAutoSplitInput: '',
       specialNotes: '',
       slideInputs: [],
       backgroundSource: 'default',
@@ -41,8 +44,8 @@ export default function Home() {
     },
   });
 
-  const { mutate: generateStory, isPending, error } = useMutation({
-    mutationFn: mockGenerateStory,
+  const { mutate: submitStory, isPending, error } = useMutation({
+    mutationFn: generateStory,
     onMutate: () => {
       setGenerationStep('uploading');
       setTimeout(() => setGenerationStep('generating'), 1000);
@@ -67,13 +70,15 @@ export default function Home() {
     }
 
     const currentTemplate = form.getValues('template');
-    if (!currentTemplate.startsWith(mode)) {
-      form.setValue('template', mode === 'news' ? 'news-standard' : 'curious-explainer');
+    const validTemplateIds = TEMPLATES.filter((template) => template.mode === mode).map((template) => template.id);
+    if (!validTemplateIds.includes(currentTemplate)) {
+      form.setValue('template', mode === 'news' ? 'test-news-1' : 'curious-explainer');
     }
 
     const currentCategory = form.getValues('category');
-    if (!currentCategory.startsWith(mode)) {
-      form.setValue('category', mode === 'news' ? 'news-technology' : 'curious-science');
+    const validCategoryIds = CATEGORIES.filter((category) => category.mode === mode).map((category) => category.id);
+    if (!validCategoryIds.includes(currentCategory)) {
+      form.setValue('category', mode === 'news' ? 'News' : 'curious-science');
     }
   };
 
@@ -83,7 +88,7 @@ export default function Home() {
   };
 
   const onSubmit = (data: StoryFormSchema) => {
-    generateStory(data as any);
+    submitStory(data as any);
   };
 
   const environment = process.env.NEXT_PUBLIC_ENVIRONMENT?.toUpperCase() || 'DEVELOPMENT';

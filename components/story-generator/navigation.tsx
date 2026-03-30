@@ -2,6 +2,7 @@
 
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LogViewer } from './log-viewer';
 
 interface NavigationProps {
   environment?: string;
@@ -31,6 +32,7 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            <LogViewer />
             <div
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-semibold text-white',
