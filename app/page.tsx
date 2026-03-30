@@ -173,7 +173,7 @@ export default function Home() {
 
       <footer className="border-t border-zinc-800 mt-24 py-8">
         <div className="max-w-5xl mx-auto px-6 text-center text-sm text-zinc-500">
-          <p>© 2024 Story Generator. Powered by AI.</p>
+          <p>© 2026 Suvichaar. Powered by Suvichaar.</p>
         </div>
       </footer>
     </div>
