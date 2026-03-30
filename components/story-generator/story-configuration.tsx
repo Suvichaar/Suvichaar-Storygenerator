@@ -32,6 +32,7 @@ export function StoryConfiguration({
 
   const filteredTemplates = TEMPLATES.filter((t) => t.mode === mode);
   const filteredCategories = CATEGORIES.filter((c) => c.mode === mode);
+  const voiceEngine = watch('voiceEngine');
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-6 space-y-6">
@@ -56,7 +57,7 @@ export function StoryConfiguration({
               <SegmentedControl
                 options={[
                   { value: 'news' as const, label: 'News' },
-                  { value: 'curious' as const, label: 'Curious' },
+                  { value: 'curious' as const, label: 'Curious (Coming soon)', disabled: true },
                 ]}
                 value={field.value}
                 onChange={(value) => {
@@ -89,6 +90,34 @@ export function StoryConfiguration({
             )}
           />
         </div>
+
+        {voiceEngine === 'elevenlabs' && (
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="voiceId" className="text-zinc-300 text-sm font-medium">
+              ElevenLabs Voice ID
+            </Label>
+            <Controller
+              name="voiceId"
+              control={control}
+              render={({ field, fieldState }) => (
+                <div className="space-y-2">
+                  <Input
+                    id="voiceId"
+                    {...field}
+                    placeholder="Enter the ElevenLabs voice ID to use"
+                    className="bg-zinc-900 border-zinc-700 text-zinc-100"
+                  />
+                  <p className="text-xs text-zinc-500">
+                    This voice ID will override the default ElevenLabs voice for this request.
+                  </p>
+                  {fieldState.error ? (
+                    <p className="text-sm text-red-400">{fieldState.error.message}</p>
+                  ) : null}
+                </div>
+              )}
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="template" className="text-zinc-300 text-sm font-medium">

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 interface SegmentedControlOption<T extends string> {
   value: T;
   label: string;
+  disabled?: boolean;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -26,15 +27,23 @@ export function SegmentedControl<T extends string>({
         <button
           key={option.value}
           type="button"
-          onClick={() => onChange(option.value)}
+          onClick={() => {
+            if (!option.disabled) {
+              onChange(option.value);
+            }
+          }}
+          disabled={option.disabled}
           className={cn(
             'px-4 py-2 text-sm font-medium rounded-md transition-all',
             'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-zinc-950',
             value === option.value
               ? 'bg-cyan-600 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              : option.disabled
+                ? 'cursor-not-allowed text-zinc-600'
+                : 'text-zinc-400 hover:text-zinc-200'
           )}
           aria-pressed={value === option.value}
+          aria-disabled={option.disabled}
           aria-label={`${name}: ${option.label}`}
         >
           {option.label}
