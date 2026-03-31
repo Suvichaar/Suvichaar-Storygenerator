@@ -8,15 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SUPPORTED_FILE_TYPES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
 
 interface BackgroundImagesProps {
   control: Control<StoryFormSchema>;
 }
 
 export function BackgroundImages({ control }: BackgroundImagesProps) {
-  const [customBackgrounds, setCustomBackgrounds] = useState<File[]>([]);
-
   return (
     <CollapsibleSection
       title="Slide Background Images"
@@ -80,17 +77,46 @@ export function BackgroundImages({ control }: BackgroundImagesProps) {
             )}
 
             {field.value === 'custom' && (
-              <div>
-                <Label className="text-zinc-300 text-sm font-medium mb-3 block">
-                  Upload Images
-                </Label>
-                <FileUpload
-                  files={customBackgrounds}
-                  onFilesChange={setCustomBackgrounds}
-                  accept={SUPPORTED_FILE_TYPES.images.join(',')}
-                  label="Drop images here or click to browse"
-                />
-              </div>
+              <Controller
+                name="customBackgrounds"
+                control={control}
+                render={({ field: customField }) => (
+                  <div>
+                    <Label className="text-zinc-300 text-sm font-medium mb-3 block">
+                      Upload Images
+                    </Label>
+                    <FileUpload
+                      files={customField.value || []}
+                      onFilesChange={customField.onChange}
+                      accept={SUPPORTED_FILE_TYPES.images.join(',')}
+                      label="Drop images here or click to browse"
+                    />
+                  </div>
+                )}
+              />
+            )}
+
+            {field.value === 'ai' && (
+              <Controller
+                name="customBackgrounds"
+                control={control}
+                render={({ field: customField }) => (
+                  <div className="space-y-2">
+                    <Label className="text-zinc-300 text-sm font-medium">
+                      Reference Images
+                    </Label>
+                    <FileUpload
+                      files={customField.value || []}
+                      onFilesChange={customField.onChange}
+                      accept={SUPPORTED_FILE_TYPES.images.join(',')}
+                      label="Optional: upload reference images for image-to-image generation"
+                    />
+                    <p className="text-xs text-zinc-500">
+                      If you upload images here, AI generation will use them as references. Leave empty for text-to-image.
+                    </p>
+                  </div>
+                )}
+              />
             )}
           </div>
         )}
