@@ -5,7 +5,12 @@ import {
   StoryFormData,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const FALLBACK_API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8000'
+    : 'https://engine-service.azurewebsites.net';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API_BASE_URL;
 
 function mapVoiceEngineToBackend(voiceEngine: StoryFormData['voiceEngine']): string {
   return voiceEngine === 'azure' ? 'azure_basic' : 'elevenlabs_pro';
