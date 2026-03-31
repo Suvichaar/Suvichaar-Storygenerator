@@ -41,6 +41,8 @@ export default function Home() {
       slideInputs: [],
       backgroundSource: 'default',
       backgroundKeywords: '',
+      customBackgrounds: [],
+      attachments: [],
     },
   });
 
@@ -122,7 +124,7 @@ export default function Home() {
 
           <BackgroundImages control={form.control} />
 
-          <Attachments />
+          <Attachments control={form.control} />
 
           {error && (
             <Alert variant="destructive" className="bg-red-950/50 border-red-900">

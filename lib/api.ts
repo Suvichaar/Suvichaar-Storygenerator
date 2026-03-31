@@ -55,10 +55,33 @@ function buildNotes(data: StoryFormData): string | undefined {
   return notes.length ? notes.join(' ') : undefined;
 }
 
-function buildStoryPayload(data: StoryFormData) {
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function serializeFiles(files?: File[]): Promise<string[]> {
+  if (!files?.length) {
+    return [];
+  }
+
+  return Promise.all(files.map((file) => fileToDataUrl(file)));
+}
+
+async function buildStoryPayload(data: StoryFormData) {
   const editableSlideCount = data.mode === 'news'
     ? Math.max(data.slideCount - 2, 1)
     : data.slideCount;
+
+  const [attachments, imageReferences] = await Promise.all([
+    serializeFiles(data.attachments),
+    serializeFiles(data.customBackgrounds),
+  ]);
+  const includeImageReferences = data.backgroundSource === 'ai' || data.backgroundSource === 'custom';
 
   return {
     mode: data.mode,
@@ -80,7 +103,8 @@ function buildStoryPayload(data: StoryFormData) {
     image_source: mapBackgroundSourceToBackend(data.backgroundSource),
     voice_engine: mapVoiceEngineToBackend(data.voiceEngine),
     voice_id: data.voiceEngine === 'elevenlabs' ? data.voiceId?.trim() || null : null,
-    attachments: [],
+    attachments,
+    image_references: includeImageReferences ? imageReferences : [],
   };
 }
 
@@ -111,12 +135,13 @@ function normalizeStoryResponse(
 }
 
 export async function generateStory(data: StoryFormData): Promise<GeneratedStory> {
+  const payload = await buildStoryPayload(data);
   const response = await fetch(`${API_BASE_URL}/stories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(buildStoryPayload(data)),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {

@@ -24,6 +24,8 @@ export const storyFormSchema = z.object({
   slideInputs: z.array(z.string()).optional(),
   backgroundSource: z.enum(['default', 'ai', 'pexels', 'custom']),
   backgroundKeywords: z.string().optional(),
+  customBackgrounds: z.array(z.custom<File>()).optional(),
+  attachments: z.array(z.custom<File>()).optional(),
 }).refine((data) => {
   const limits = SLIDE_LIMITS[data.mode];
   return data.slideCount >= limits.min && data.slideCount <= limits.max;
