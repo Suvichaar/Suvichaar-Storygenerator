@@ -105,3 +105,52 @@ export interface BackendLogsResponse {
   total_buffered: number;
   logs: BackendLogEntry[];
 }
+
+export type PromptGroup = 'text_prompts' | 'image_prompts';
+
+export interface PromptVersion {
+  group: PromptGroup;
+  key: string;
+  version: string;
+  file_name: string;
+  description?: string | null;
+  status?: string | null;
+  allowed_categories: string[];
+  required_placeholders: string[];
+  system: string;
+  user_template: string;
+  is_active: boolean;
+}
+
+export interface PromptFamily {
+  key: string;
+  versions: PromptVersion[];
+}
+
+export interface PromptListing {
+  text_prompts: PromptFamily[];
+  image_prompts: PromptFamily[];
+}
+
+export interface PromptCreatePayload {
+  group: PromptGroup;
+  key: string;
+  version: string;
+  description?: string;
+  status?: string;
+  allowed_categories: string[];
+  required_placeholders: string[];
+  system: string;
+  user_template: string;
+  active: boolean;
+}
+
+export interface PromptUpdatePayload {
+  description?: string;
+  status?: string;
+  allowed_categories: string[];
+  required_placeholders: string[];
+  system: string;
+  user_template: string;
+  active?: boolean;
+}

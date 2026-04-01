@@ -2,6 +2,11 @@ import {
   BackendLogsResponse,
   BackendStoryResponse,
   GeneratedStory,
+  PromptCreatePayload,
+  PromptGroup,
+  PromptListing,
+  PromptUpdatePayload,
+  PromptVersion,
   StoryFormData,
 } from './types';
 
@@ -167,4 +172,96 @@ export async function fetchLogs(limit: number = 200): Promise<BackendLogsRespons
   }
 
   return response.json();
+}
+
+export async function fetchPromptManagement(): Promise<PromptListing> {
+  const response = await fetch(`${API_BASE_URL}/prompt-management`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch prompts' }));
+    throw new Error(error.detail || error.message || 'Failed to fetch prompts');
+  }
+
+  return response.json();
+}
+
+export async function createPromptVersion(payload: PromptCreatePayload): Promise<PromptVersion> {
+  const response = await fetch(`${API_BASE_URL}/prompt-management`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to create prompt' }));
+    throw new Error(error.detail || error.message || 'Failed to create prompt');
+  }
+
+  return response.json();
+}
+
+export async function updatePromptVersion(
+  group: PromptGroup,
+  key: string,
+  version: string,
+  payload: PromptUpdatePayload,
+): Promise<PromptVersion> {
+  const response = await fetch(
+    `${API_BASE_URL}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to update prompt' }));
+    throw new Error(error.detail || error.message || 'Failed to update prompt');
+  }
+
+  return response.json();
+}
+
+export async function activatePromptVersion(
+  group: PromptGroup,
+  key: string,
+  version: string,
+): Promise<PromptVersion> {
+  const response = await fetch(`${API_BASE_URL}/prompt-management/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ group, key, version }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to activate prompt' }));
+    throw new Error(error.detail || error.message || 'Failed to activate prompt');
+  }
+
+  return response.json();
+}
+
+export async function deletePromptVersion(
+  group: PromptGroup,
+  key: string,
+  version: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to delete prompt' }));
+    throw new Error(error.detail || error.message || 'Failed to delete prompt');
+  }
 }

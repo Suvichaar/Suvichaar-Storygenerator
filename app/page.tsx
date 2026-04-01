@@ -15,12 +15,15 @@ import { BackgroundImages } from '@/components/story-generator/background-images
 import { Attachments } from '@/components/story-generator/attachments';
 import { GenerationLoading } from '@/components/story-generator/generation-loading';
 import { ResultPanel } from '@/components/story-generator/result-panel';
+import { PromptManagement } from '@/components/story-generator/prompt-management';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sparkles, CircleAlert as AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Home() {
+  const [activeSection, setActiveSection] = useState<'story' | 'prompts'>('story');
   const [generatedStory, setGeneratedStory] = useState<GeneratedStory | null>(null);
   const [generationStep, setGenerationStep] = useState<'uploading' | 'generating' | 'finalizing'>('uploading');
 
@@ -109,68 +112,85 @@ export default function Home() {
           </p>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <StoryConfiguration
-            control={form.control}
-            watch={form.watch}
-            onModeChange={handleModeChange}
-          />
+        <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as 'story' | 'prompts')}>
+          <TabsList className="mb-8 grid w-full grid-cols-2 bg-zinc-800">
+            <TabsTrigger value="story" className="data-[state=active]:bg-cyan-600">
+              Story Generator
+            </TabsTrigger>
+            <TabsTrigger value="prompts" className="data-[state=active]:bg-cyan-600">
+              Prompt Management
+            </TabsTrigger>
+          </TabsList>
 
-          <ContentInput
-            control={form.control}
-            watch={form.watch}
-            setValue={form.setValue}
-          />
+          <TabsContent value="story" className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <StoryConfiguration
+                control={form.control}
+                watch={form.watch}
+                onModeChange={handleModeChange}
+              />
 
-          <BackgroundImages control={form.control} />
+              <ContentInput
+                control={form.control}
+                watch={form.watch}
+                setValue={form.setValue}
+              />
 
-          <Attachments control={form.control} />
+              <BackgroundImages control={form.control} />
 
-          {error && (
-            <Alert variant="destructive" className="bg-red-950/50 border-red-900">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {error.message || 'An error occurred while generating the story'}
-              </AlertDescription>
-            </Alert>
-          )}
+              <Attachments control={form.control} />
 
-          <div className="flex justify-center pt-4">
-            <Button
-              type="submit"
-              disabled={isPending}
-              size="lg"
-              className="w-full md:w-auto min-w-64 h-12 text-base font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 shadow-lg shadow-cyan-500/20"
-            >
-              {isPending ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Generate Story
-                </>
+              {error && (
+                <Alert variant="destructive" className="bg-red-950/50 border-red-900">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {error.message || 'An error occurred while generating the story'}
+                  </AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </div>
-        </form>
 
-        {isPending && (
-          <div className="mt-12">
-            <GenerationLoading step={generationStep} />
-          </div>
-        )}
+              <div className="flex justify-center pt-4">
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  size="lg"
+                  className="w-full md:w-auto min-w-64 h-12 text-base font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 shadow-lg shadow-cyan-500/20"
+                >
+                  {isPending ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Generate Story
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
 
-        {generatedStory && !isPending && (
-          <div className="mt-12">
-            <ResultPanel
-              story={generatedStory}
-              onGenerateAnother={handleGenerateAnother}
-            />
-          </div>
-        )}
+            {isPending && (
+              <div className="mt-12">
+                <GenerationLoading step={generationStep} />
+              </div>
+            )}
+
+            {generatedStory && !isPending && (
+              <div className="mt-12">
+                <ResultPanel
+                  story={generatedStory}
+                  onGenerateAnother={handleGenerateAnother}
+                />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="prompts">
+            <PromptManagement />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <footer className="border-t border-zinc-800 mt-24 py-8">

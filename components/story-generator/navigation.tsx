@@ -1,7 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
+import { fetchPromptManagement } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { LogViewer } from './log-viewer';
 
 interface NavigationProps {
@@ -16,6 +20,24 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
   };
 
   const config = envConfig[environment as keyof typeof envConfig] || envConfig.DEVELOPMENT;
+  const promptsQuery = useQuery({
+    queryKey: ['prompt-management'],
+    queryFn: fetchPromptManagement,
+  });
+
+  const activePromptBadges = useMemo(() => {
+    if (!promptsQuery.data) {
+      return [];
+    }
+
+    return [...promptsQuery.data.text_prompts, ...promptsQuery.data.image_prompts]
+      .map((family) => family.versions.find((version) => version.is_active))
+      .filter((version): version is NonNullable<typeof version> => Boolean(version))
+      .map((version) => ({
+        label: `${version.key}:${version.version}`,
+        group: version.group === 'text_prompts' ? 'Text' : 'Image',
+      }));
+  }, [promptsQuery.data]);
 
   return (
     <nav className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
@@ -32,6 +54,32 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden xl:flex items-center gap-2">
+              <span className="text-xs font-medium text-zinc-500">Active prompts</span>
+              {promptsQuery.isLoading ? (
+                <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+                  Loading...
+                </Badge>
+              ) : promptsQuery.error ? (
+                <Badge variant="outline" className="border-red-900 text-red-300">
+                  Prompt fetch failed
+                </Badge>
+              ) : activePromptBadges.length > 0 ? (
+                activePromptBadges.map((item) => (
+                  <Badge
+                    key={`${item.group}-${item.label}`}
+                    variant="outline"
+                    className="border-cyan-800 bg-cyan-950/40 text-cyan-200"
+                  >
+                    {item.group} {item.label}
+                  </Badge>
+                ))
+              ) : (
+                <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+                  No active prompt
+                </Badge>
+              )}
+            </div>
             <LogViewer />
             <div
               className={cn(
