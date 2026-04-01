@@ -1,226 +1,276 @@
-# Story Generator - AI-Powered Web Stories
+# Story Generator Frontend
 
-A production-grade Next.js application for generating AI-powered web stories with a refined, editorial interface.
+Next.js frontend for creating AI-powered web stories and managing versioned text/image prompts used by the backend.
 
-## Features
+## What This App Does
 
-### Core Functionality
-- **Story Configuration**: Mode selection (News/Curious), template and category selection, slide count control, voice engine selection
-- **Content Input**: Single input or slide-by-slide editing with progress tracking
-- **Background Images**: Support for default, AI-generated, Pexels, or custom uploaded backgrounds
-- **File Attachments**: Upload PDFs, DOCX, and images as supporting content
-- **Real-time Generation**: Progress indicator with step-by-step feedback
-- **Result Display**: Comprehensive result panel with metadata, slide previews, and download options
+- Create web stories from article URLs, pasted text, or slide-by-slide input
+- Choose story template, category, slide count, voice engine, and image source
+- Use default, AI-generated, Pexels, or uploaded background images
+- View backend logs from the UI
+- Manage prompt versions from the frontend:
+  - text prompts
+  - image prompts
+  - activate/deactivate versions
+  - create, update, delete prompt versions
 
-### Design & UX
-- Refined dark theme with zinc/slate palette and cyan accents
-- No sidebar - single-column, focused layout
-- Progressive disclosure for optional features
-- Smooth animations with Framer Motion
-- Fully responsive design
-- Accessible with keyboard navigation and focus management
+## Current Stack
 
-### Technical Stack
-- **Framework**: Next.js 14 App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Forms**: React Hook Form + Zod validation
-- **State**: TanStack Query
-- **Animations**: Framer Motion
-- **Notifications**: Sonner
+- Next.js 13 App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- React Hook Form + Zod
+- TanStack Query
+- Sonner
 
 ## Project Structure
 
-```
+```text
+Suvichaar-Storygenerator/
 ├── app/
-│   ├── layout.tsx           # Root layout with providers
-│   ├── page.tsx             # Main story generator page
-│   └── globals.css          # Global styles
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css
 ├── components/
-│   ├── story-generator/     # Feature components
-│   │   ├── navigation.tsx
-│   │   ├── story-configuration.tsx
-│   │   ├── content-input.tsx
-│   │   ├── background-images.tsx
-│   │   ├── attachments.tsx
-│   │   ├── generation-loading.tsx
-│   │   ├── result-panel.tsx
-│   │   ├── segmented-control.tsx
-│   │   ├── collapsible-section.tsx
-│   │   ├── file-upload.tsx
-│   │   └── progress-indicator.tsx
 │   ├── providers/
 │   │   └── query-provider.tsx
-│   └── ui/                  # shadcn/ui components
+│   ├── story-generator/
+│   │   ├── attachments.tsx
+│   │   ├── background-images.tsx
+│   │   ├── content-input.tsx
+│   │   ├── generation-loading.tsx
+│   │   ├── log-viewer.tsx
+│   │   ├── navigation.tsx
+│   │   ├── prompt-management.tsx
+│   │   ├── progress-indicator.tsx
+│   │   ├── result-panel.tsx
+│   │   └── story-configuration.tsx
+│   └── ui/
 ├── lib/
-│   ├── types.ts            # TypeScript interfaces
-│   ├── constants.ts        # App constants
-│   ├── validation.ts       # Zod schemas
-│   ├── api.ts              # API integration
-│   └── utils.ts            # Utility functions
-└── .env.local              # Environment variables
+│   ├── api.ts
+│   ├── constants.ts
+│   ├── types.ts
+│   ├── utils.ts
+│   └── validation.ts
+└── .env.local
 ```
 
-## Getting Started
+## Local Setup
 
 ### Prerequisites
+
 - Node.js 18+
-- npm or yarn
+- npm
+- Backend running locally on port `8000`
 
-### Installation
+### Install
 
-1. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Configure environment variables:
+### Environment
+
+Copy the sample env:
+
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local`:
-```
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api
+Recommended local values:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_ENVIRONMENT=development
 ```
 
-### Development
+Important:
+- use the backend base URL directly
+- do not use `http://localhost:3001/api`
+- this frontend talks to the Python backend, not a Next.js API route
 
-Run the development server:
+### Run
+
 ```bash
-npm run dev
+npm run dev -- --hostname 127.0.0.1 --port 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open:
 
-### Build
+```text
+http://127.0.0.1:3001
+```
 
-Create a production build:
+## Backend Dependency
+
+This frontend expects the backend to expose at least:
+
+- `POST /stories`
+- `GET /logs`
+- `GET /prompt-management`
+- `POST /prompt-management`
+- `PUT /prompt-management/{group}/{key}/{version}`
+- `POST /prompt-management/activate`
+- `DELETE /prompt-management/{group}/{key}/{version}`
+
+If the frontend is running on `127.0.0.1:3001`, the backend must allow that origin in CORS.
+
+## Main UI Areas
+
+### Story Generator
+
+Used for normal story generation.
+
+Features:
+- mode/category/template selection
+- single-input or slide-by-slide content entry
+- voice selection
+- image source selection
+- attachments
+- generated story result panel
+
+### Prompt Management
+
+Used for managing versioned prompt files from the UI.
+
+Supports:
+- `text_prompts`
+- `image_prompts`
+- filter by:
+  - all
+  - active
+  - inactive
+- create prompt version
+- edit prompt version
+- delete prompt version
+- activate a version
+
+The navbar also shows currently active prompt versions for quick confirmation.
+
+## Prompt Field Meaning
+
+These definitions are surfaced in the UI as well.
+
+### System Prompt
+
+Tells the AI what role it should play and how it should behave.
+
+Simple example:
+
+```text
+You are like a senior news editor.
+Write clear, factual story text.
+```
+
+### User Prompt Template
+
+The actual message shape sent to the AI each time.
+The app fills placeholders before sending it.
+
+Simple example:
+
+```text
+Language: {language}
+Focus Keywords: {keywords}
+Signal Analysis:
+{analysis}
+```
+
+### Required Placeholders
+
+These are the variable names the app must supply at runtime.
+
+Simple example:
+
+```text
+language, keywords, analysis
+```
+
+Meaning:
+- if the template contains `{language}`, backend must provide a `language` value
+- placeholders do not decide values
+- backend logic decides values, then fills them in
+
+Example:
+
+```text
+Special notes: make it Hindi
+backend decides language = hi
+template uses {language}
+final prompt becomes Language: hi
+```
+
+## Image Generation Notes
+
+Current AI-image behavior in the backend:
+
+- AI-generated images are raster images, not vector images
+- the active provider path uses `FLUX.2-pro`
+- generation request is square:
+  - `1024 x 1024`
+- story rendering then maps/resizes them for portrait display in templates
+  - commonly `720 x 1280` cover-fit style usage in the rendering layer
+
+So the rough flow is:
+
+```text
+generate 1024x1024 image
+-> store/upload
+-> render as portrait story background
+```
+
+## Useful Commands
+
+Run dev server:
+
+```bash
+npm run dev -- --hostname 127.0.0.1 --port 3001
+```
+
+Typecheck:
+
+```bash
+npm run typecheck
+```
+
+Build:
+
 ```bash
 npm run build
 ```
 
-Start the production server:
+Start production build:
+
 ```bash
-npm start
+npm run start
 ```
 
-## API Integration
+## Common Local Issues
 
-The application is currently using a mock API (`mockGenerateStory` in `lib/api.ts`). To integrate with a real API:
+### Prompt Management says "Failed to fetch"
 
-1. Update `NEXT_PUBLIC_API_BASE_URL` in `.env.local`
-2. Replace `mockGenerateStory` with `generateStory` in `app/page.tsx`
-3. Ensure your API endpoint matches the expected request/response format:
+Check:
+- backend is running on `127.0.0.1:8000`
+- `.env.local` points to `http://127.0.0.1:8000`
+- backend CORS includes:
+  - `http://127.0.0.1:3001`
+  - optionally `http://localhost:3001`
 
-**Request**: `POST /stories/generate`
-- FormData with story configuration and optional files
+### Backend works but old story HTML still shows old placeholders
 
-**Response**: JSON with `GeneratedStory` structure
-```typescript
-{
-  id: string;
-  mode: 'news' | 'curious';
-  template: string;
-  category: string;
-  slideCount: number;
-  language: string;
-  voiceEngine: 'azure' | 'elevenlabs';
-  backgroundSource: string;
-  primaryUrl: string;
-  htmlUrl: string;
-  createdAt: string;
-  slides: Array<{
-    number: number;
-    text: string;
-    imageUrl?: string;
-  }>;
-}
-```
+Old already-generated stories may still contain stale rendered HTML.
+Generate a new story after template or renderer changes.
 
-## Customization
+### Next dev server starts but browser still shows stale UI
 
-### Theme Colors
+Try:
+- hard refresh
+- restart frontend dev server
+- clear `.next` if needed
 
-Edit `tailwind.config.ts` to change the accent color from cyan to your preferred color.
+## Notes
 
-### Templates & Categories
-
-Modify `lib/constants.ts` to add/remove templates and categories:
-
-```typescript
-export const TEMPLATES: Template[] = [
-  { id: 'news-standard', name: 'Standard News', mode: 'news' },
-  // Add more templates
-];
-
-export const CATEGORIES: Category[] = [
-  { id: 'news-politics', name: 'Politics', mode: 'news' },
-  // Add more categories
-];
-```
-
-### Slide Limits
-
-Adjust slide count ranges in `lib/constants.ts`:
-
-```typescript
-export const SLIDE_LIMITS: Record<StoryMode, SlideLimits> = {
-  news: { min: 5, max: 12, default: 8 },
-  curious: { min: 6, max: 15, default: 10 },
-};
-```
-
-## Features in Detail
-
-### Story Configuration
-- **Mode**: Determines available templates, categories, and slide limits
-- **Template**: Pre-defined story structures
-- **Category**: Content categorization
-- **Slide Count**: Number of slides with mode-specific constraints
-- **Voice Engine**: Azure or ElevenLabs for narration
-
-### Content Input Modes
-- **Single Input**: One textarea for all content (URLs, text, or prompts)
-- **Slide by Slide**: Individual textarea for each slide with progress tracking
-
-### Background Images
-- **Default**: System-generated backgrounds
-- **AI Generated**: Keywords-based AI generation
-- **Pexels**: Stock photo integration
-- **Custom Upload**: User-provided images
-
-### Generation Process
-1. Validates form data with Zod
-2. Shows uploading → generating → finalizing progress
-3. Displays results inline with smooth animations
-4. Provides download and regeneration options
-
-## Accessibility
-
-- Semantic HTML structure
-- ARIA labels and descriptions
-- Keyboard navigation support
-- Focus management
-- Sufficient color contrast
-- Screen reader compatible
-
-## Performance
-
-- Optimized with Next.js 14
-- Static generation where possible
-- Lazy loading for images
-- Efficient re-renders with React Hook Form
-- Debounced validation
-
-## Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-## License
-
-MIT
+- This repo currently uses the backend directly, not a mock API
+- Prompt Management depends on the backend prompt CRUD endpoints
+- Story output depends on both frontend request payloads and backend rendering logic
