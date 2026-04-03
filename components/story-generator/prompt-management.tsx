@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   activatePromptVersion,
@@ -15,6 +15,7 @@ import {
   PromptGroup,
   PromptUpdatePayload,
   PromptVersion,
+  StoryMode,
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +123,23 @@ function buildEditState(version: PromptVersion): PromptEditorState {
   };
 }
 
-export function PromptManagement() {
+function fallbackPromptKeys(mode: StoryMode, group: PromptGroup): string[] {
+  if (group === 'text_prompts') {
+    return [mode === 'news' ? 'news' : 'curious'];
+  }
+
+  return ['alt_text_generation', 'english_fallback'];
+}
+
+function isInactiveStatus(version: PromptVersion) {
+  return (version.status || '').toLowerCase() === 'inactive';
+}
+
+function isEffectivelyActive(version: PromptVersion) {
+  return version.is_active && !isInactiveStatus(version);
+}
+
+export function PromptManagement({ mode }: { mode: StoryMode }) {
   const queryClient = useQueryClient();
   const [activeGroup, setActiveGroup] = useState<PromptGroup>('text_prompts');
   const [versionFilter, setVersionFilter] = useState<VersionFilter>('all');
@@ -131,16 +148,45 @@ export function PromptManagement() {
   const [editor, setEditor] = useState<PromptEditorState>(buildCreateState('text_prompts'));
 
   const promptsQuery = useQuery({
-    queryKey: ['prompt-management'],
-    queryFn: fetchPromptManagement,
+    queryKey: ['prompt-management', mode],
+    queryFn: () => fetchPromptManagement(mode),
   });
 
+  const getPromptKeysForGroup = (group: PromptGroup) => {
+    const fetchedKeys = (
+      group === 'text_prompts'
+        ? promptsQuery.data?.text_prompts.map((family) => family.key)
+        : promptsQuery.data?.image_prompts.map((family) => family.key)
+    ) || fallbackPromptKeys(mode, group);
+
+    return Array.from(new Set(fetchedKeys));
+  };
+
+  const availablePromptKeys = (
+    getPromptKeysForGroup(editor.group)
+  );
+
+  const promptKeyOptions = availablePromptKeys;
+
+  useEffect(() => {
+    if (!editorOpen || editor.mode !== 'create') {
+      return;
+    }
+
+    const nextKeys = getPromptKeysForGroup(editor.group);
+    const nextKey = nextKeys.includes(editor.key) ? editor.key : nextKeys[0] || '';
+
+    if (nextKey !== editor.key) {
+      setEditor((current) => ({ ...current, key: nextKey }));
+    }
+  }, [editorOpen, editor.mode, editor.group, editor.key, mode, promptsQuery.data]);
+
   const invalidatePrompts = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['prompt-management'] });
+    await queryClient.invalidateQueries({ queryKey: ['prompt-management', mode] });
   };
 
   const createMutation = useMutation({
-    mutationFn: createPromptVersion,
+    mutationFn: (payload: PromptCreatePayload) => createPromptVersion(mode, payload),
     onSuccess: async () => {
       await invalidatePrompts();
       toast.success('Prompt version created');
@@ -162,7 +208,7 @@ export function PromptManagement() {
       key: string;
       version: string;
       payload: PromptUpdatePayload;
-    }) => updatePromptVersion(group, key, version, payload),
+    }) => updatePromptVersion(mode, group, key, version, payload),
     onSuccess: async () => {
       await invalidatePrompts();
       toast.success('Prompt version updated');
@@ -175,7 +221,7 @@ export function PromptManagement() {
 
   const activateMutation = useMutation({
     mutationFn: ({ group, key, version }: { group: PromptGroup; key: string; version: string }) =>
-      activatePromptVersion(group, key, version),
+      activatePromptVersion(mode, group, key, version),
     onSuccess: async () => {
       await invalidatePrompts();
       toast.success('Prompt version activated');
@@ -187,7 +233,7 @@ export function PromptManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: ({ group, key, version }: { group: PromptGroup; key: string; version: string }) =>
-      deletePromptVersion(group, key, version),
+      deletePromptVersion(mode, group, key, version),
     onSuccess: async () => {
       await invalidatePrompts();
       toast.success('Prompt version deleted');
@@ -198,7 +244,11 @@ export function PromptManagement() {
   });
 
   const openCreateDialog = (group: PromptGroup, family?: PromptFamily) => {
-    setEditor(buildCreateState(group, family));
+    const nextKeys = getPromptKeysForGroup(group);
+    setEditor({
+      ...buildCreateState(group, family),
+      key: family?.key || nextKeys[0] || '',
+    });
     setEditorOpen(true);
   };
 
@@ -254,7 +304,7 @@ export function PromptManagement() {
           <div>
             <CardTitle className="text-zinc-100">Prompt Management</CardTitle>
             <CardDescription className="text-zinc-400">
-              Manage text and image prompt versions without editing files manually.
+              Manage {mode === 'news' ? 'news' : 'curious'} text and image prompt versions without editing files manually.
             </CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -347,10 +397,10 @@ export function PromptManagement() {
                   ...family,
                   versions: family.versions.filter((version) => {
                     if (versionFilter === 'active') {
-                      return version.is_active;
+                      return isEffectivelyActive(version);
                     }
                     if (versionFilter === 'inactive') {
-                      return !version.is_active;
+                      return !isEffectivelyActive(version);
                     }
                     return true;
                   }),
@@ -420,13 +470,20 @@ export function PromptManagement() {
                                   <span className="text-sm font-semibold text-zinc-100">
                                     {version.version}
                                   </span>
-                                  {version.is_active && (
+                                  {isEffectivelyActive(version) && (
                                     <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
                                       Active
                                     </Badge>
                                   )}
                                   {version.status && (
-                                    <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        isInactiveStatus(version)
+                                          ? 'border-amber-800 text-amber-300'
+                                          : 'border-zinc-700 text-zinc-300'
+                                      }
+                                    >
                                       {version.status}
                                     </Badge>
                                   )}
@@ -511,9 +568,15 @@ export function PromptManagement() {
               <Label htmlFor="prompt-group">Prompt Group</Label>
               <Select
                 value={editor.group}
-                onValueChange={(value) =>
-                  setEditor((current) => ({ ...current, group: value as PromptGroup }))
-                }
+                onValueChange={(value) => {
+                  const nextGroup = value as PromptGroup;
+                  const nextKeys = getPromptKeysForGroup(nextGroup);
+                  setEditor((current) => ({
+                    ...current,
+                    group: nextGroup,
+                    key: nextKeys.includes(current.key) ? current.key : nextKeys[0] || '',
+                  }));
+                }}
                 disabled={editor.mode === 'edit'}
               >
                 <SelectTrigger id="prompt-group" className="border-zinc-700 bg-zinc-900">
@@ -527,14 +590,31 @@ export function PromptManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="prompt-key">Prompt Key</Label>
-              <Input
-                id="prompt-key"
+              <Select
                 value={editor.key}
+                onValueChange={(value) =>
+                  setEditor((current) => ({ ...current, key: value }))
+                }
                 disabled={editor.mode === 'edit'}
-                onChange={(event) => setEditor((current) => ({ ...current, key: event.target.value }))}
-                className="border-zinc-700 bg-zinc-900 text-zinc-100"
-                placeholder="news or alt_text_generation"
-              />
+              >
+                <SelectTrigger id="prompt-key" className="border-zinc-700 bg-zinc-900 text-zinc-100">
+                  <SelectValue placeholder="Select prompt key" />
+                </SelectTrigger>
+                <SelectContent>
+                  {promptKeyOptions.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {key}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-zinc-500">
+                {editor.group === 'text_prompts'
+                  ? mode === 'news'
+                    ? 'Text prompt key for the News service.'
+                    : 'Text prompt key for the Curious service.'
+                  : 'Image prompt keys used by the selected service.'}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="prompt-version">Version</Label>

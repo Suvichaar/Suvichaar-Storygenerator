@@ -1,9 +1,11 @@
 'use client';
 
 import { Control, Controller, UseFormWatch } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { StoryFormSchema } from '@/lib/validation';
 import { SegmentedControl } from './segmented-control';
 import { TEMPLATES, CATEGORIES, SLIDE_LIMITS } from '@/lib/constants';
+import { fetchTemplates } from '@/lib/api';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -31,8 +33,19 @@ export function StoryConfiguration({
   const limits = SLIDE_LIMITS[mode];
 
   const filteredTemplates = TEMPLATES.filter((t) => t.mode === mode);
+  const templateOptionsQuery = useQuery({
+    queryKey: ['templates', mode],
+    queryFn: () => fetchTemplates(mode),
+  });
   const filteredCategories = CATEGORIES.filter((c) => c.mode === mode);
   const voiceEngine = watch('voiceEngine');
+  const templateLabelLookup = Object.fromEntries(filteredTemplates.map((template) => [template.id, template.name]));
+  const templateOptions = templateOptionsQuery.data?.length
+    ? templateOptionsQuery.data.map((templateKey) => ({
+        id: templateKey,
+        name: templateLabelLookup[templateKey] || templateKey,
+      }))
+    : filteredTemplates;
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-6 space-y-6">
@@ -57,7 +70,7 @@ export function StoryConfiguration({
               <SegmentedControl
                 options={[
                   { value: 'news' as const, label: 'News' },
-                  { value: 'curious' as const, label: 'Curious (Coming soon)', disabled: true },
+                  { value: 'curious' as const, label: 'Curious' },
                 ]}
                 value={field.value}
                 onChange={(value) => {
@@ -135,7 +148,7 @@ export function StoryConfiguration({
                   <SelectValue placeholder="Select template" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredTemplates.map((template) => (
+                  {templateOptions.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
                     </SelectItem>
@@ -180,44 +193,49 @@ export function StoryConfiguration({
           <Controller
             name="slideCount"
             control={control}
-            render={({ field }) => (
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    field.onChange(Math.max(limits.min, field.value - 1))
-                  }
-                  disabled={field.value <= limits.min}
-                  className="w-9 h-9 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  aria-label="Decrease slide count"
-                >
-                  <Minus className="w-4 h-4 text-zinc-400" />
-                </button>
-                <Input
-                  id="slideCount"
-                  type="number"
-                  value={field.value}
-                  onChange={(e) =>
-                    field.onChange(parseInt(e.target.value) || limits.default)
-                  }
-                  min={limits.min}
-                  max={limits.max}
-                  className="text-center bg-zinc-900 border-zinc-700 text-zinc-100 w-20"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    field.onChange(Math.min(limits.max, field.value + 1))
-                  }
-                  disabled={field.value >= limits.max}
-                  className="w-9 h-9 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  aria-label="Increase slide count"
-                >
-                  <Plus className="w-4 h-4 text-zinc-400" />
-                </button>
-                <span className="text-sm text-zinc-500">
-                  ({limits.min}-{limits.max})
-                </span>
+            render={({ field, fieldState }) => (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      field.onChange(Math.max(limits.min, field.value - 1))
+                    }
+                    disabled={field.value <= limits.min}
+                    className="w-9 h-9 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    aria-label="Decrease slide count"
+                  >
+                    <Minus className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  <Input
+                    id="slideCount"
+                    type="number"
+                    value={field.value}
+                    onChange={(e) =>
+                      field.onChange(parseInt(e.target.value) || limits.default)
+                    }
+                    min={limits.min}
+                    max={limits.max}
+                    className="text-center bg-zinc-900 border-zinc-700 text-zinc-100 w-20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      field.onChange(Math.min(limits.max, field.value + 1))
+                    }
+                    disabled={field.value >= limits.max}
+                    className="w-9 h-9 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    aria-label="Increase slide count"
+                  >
+                    <Plus className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  <span className="text-sm text-zinc-500">
+                    ({limits.min}-{limits.max})
+                  </span>
+                </div>
+                {fieldState.error ? (
+                  <p className="text-sm text-red-400">{fieldState.error.message}</p>
+                ) : null}
               </div>
             )}
           />

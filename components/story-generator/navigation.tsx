@@ -4,15 +4,17 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import { fetchPromptManagement } from '@/lib/api';
+import { StoryMode } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { LogViewer } from './log-viewer';
 
 interface NavigationProps {
   environment?: string;
+  mode: StoryMode;
 }
 
-export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
+export function Navigation({ environment = 'DEVELOPMENT', mode }: NavigationProps) {
   const envConfig = {
     PRODUCTION: { color: 'bg-emerald-500', text: 'PROD' },
     STAGING: { color: 'bg-amber-500', text: 'STAGING' },
@@ -21,8 +23,8 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
 
   const config = envConfig[environment as keyof typeof envConfig] || envConfig.DEVELOPMENT;
   const promptsQuery = useQuery({
-    queryKey: ['prompt-management'],
-    queryFn: fetchPromptManagement,
+    queryKey: ['prompt-management', mode],
+    queryFn: () => fetchPromptManagement(mode),
   });
 
   const activePromptBadges = useMemo(() => {
@@ -49,13 +51,15 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold text-zinc-100">Story Generator</h1>
-              <p className="text-xs text-zinc-500">AI-Powered Web Stories</p>
+              <p className="text-xs text-zinc-500">{mode === 'news' ? 'News Service' : 'Curious Service'}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="hidden xl:flex items-center gap-2">
-              <span className="text-xs font-medium text-zinc-500">Active prompts</span>
+              <span className="text-xs font-medium text-zinc-500">
+                {mode === 'news' ? 'News prompts' : 'Curious prompts'}
+              </span>
               {promptsQuery.isLoading ? (
                 <Badge variant="outline" className="border-zinc-700 text-zinc-400">
                   Loading...
@@ -80,7 +84,10 @@ export function Navigation({ environment = 'DEVELOPMENT' }: NavigationProps) {
                 </Badge>
               )}
             </div>
-            <LogViewer />
+            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+              {mode === 'news' ? 'News Mode' : 'Curious Mode'}
+            </Badge>
+            <LogViewer mode={mode} />
             <div
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-semibold text-white',

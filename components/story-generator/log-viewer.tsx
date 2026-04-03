@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Loader2, RefreshCcw } from 'lucide-react';
 
 import { fetchLogs } from '@/lib/api';
-import { BackendLogEntry } from '@/lib/types';
+import { BackendLogEntry, StoryMode } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -50,12 +50,12 @@ function LogRow({ log }: { log: BackendLogEntry }) {
   );
 }
 
-export function LogViewer() {
+export function LogViewer({ mode }: { mode: StoryMode }) {
   const [open, setOpen] = useState(false);
 
   const { data, error, isFetching, refetch } = useQuery({
-    queryKey: ['backend-logs'],
-    queryFn: () => fetchLogs(200),
+    queryKey: ['backend-logs', mode],
+    queryFn: () => fetchLogs(mode, 200),
     enabled: open,
     refetchInterval: open ? 3000 : false,
   });
@@ -78,7 +78,7 @@ export function LogViewer() {
             <div>
               <DialogTitle>Backend Logs</DialogTitle>
               <DialogDescription className="mt-1 text-zinc-400">
-                Recent structured logs from the running news backend service.
+                Recent structured logs from the running {mode} backend service.
               </DialogDescription>
             </div>
             <Button

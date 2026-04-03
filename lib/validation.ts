@@ -13,7 +13,7 @@ export const storyFormSchema = z.object({
   mode: z.enum(['news', 'curious']),
   template: z.string().min(1, 'Template is required'),
   category: z.string().min(1, 'Category is required'),
-  slideCount: z.number().int().min(5).max(15),
+  slideCount: z.number().int().min(4).max(10),
   voiceEngine: z.enum(['azure', 'elevenlabs']),
   voiceId: z.string().optional(),
   inputMode: z.enum(['single', 'slideBySlide']),

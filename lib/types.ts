@@ -43,6 +43,7 @@ export interface StoryFormData {
 export interface GeneratedStory {
   id: string;
   mode: StoryMode;
+  backendBaseUrl: string;
   template: string;
   category: string;
   slideCount: number;
@@ -153,4 +154,43 @@ export interface PromptUpdatePayload {
   system: string;
   user_template: string;
   active?: boolean;
+}
+
+export interface TemplateVersion {
+  key: string;
+  version: string;
+  mode: StoryMode;
+  file_name: string;
+  file_path: string;
+  slide_generator: string;
+  description?: string | null;
+  enabled: boolean;
+  is_active: boolean;
+  html_content: string;
+}
+
+export interface TemplateFamily {
+  key: string;
+  versions: TemplateVersion[];
+}
+
+export interface TemplateListing {
+  templates: TemplateFamily[];
+}
+
+export interface TemplateCreatePayload {
+  key: string;
+  slide_generator: string;
+  description?: string;
+  enabled: boolean;
+  active: boolean;
+  html_content: string;
+}
+
+export interface TemplateUpdatePayload {
+  slide_generator: string;
+  description?: string;
+  enabled: boolean;
+  active?: boolean;
+  html_content: string;
 }

@@ -8,14 +8,37 @@ import {
   PromptUpdatePayload,
   PromptVersion,
   StoryFormData,
+  StoryMode,
+  TemplateCreatePayload,
+  TemplateListing,
+  TemplateUpdatePayload,
+  TemplateVersion,
 } from './types';
 
-const FALLBACK_API_BASE_URL =
+const FALLBACK_NEWS_API_BASE_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:8000'
     : 'https://engine-service.azurewebsites.net';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API_BASE_URL;
+const FALLBACK_CURIOUS_API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8001'
+    : 'https://curious-service.azurewebsites.net';
+
+function getApiBaseUrl(mode: StoryMode): string {
+  if (mode === 'curious') {
+    return (
+      process.env.NEXT_PUBLIC_CURIOUS_API_BASE_URL ||
+      FALLBACK_CURIOUS_API_BASE_URL
+    );
+  }
+
+  return (
+    process.env.NEXT_PUBLIC_NEWS_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    FALLBACK_NEWS_API_BASE_URL
+  );
+}
 
 function mapVoiceEngineToBackend(voiceEngine: StoryFormData['voiceEngine']): string {
   return voiceEngine === 'azure' ? 'azure_basic' : 'elevenlabs_pro';
@@ -121,12 +144,14 @@ async function buildStoryPayload(data: StoryFormData) {
 function normalizeStoryResponse(
   response: BackendStoryResponse,
   request: StoryFormData,
+  apiBaseUrl: string,
 ): GeneratedStory {
-  const primaryUrl = response.canurl || response.canurl1 || `${API_BASE_URL}/stories/${response.id}`;
+  const primaryUrl = response.canurl || response.canurl1 || `${apiBaseUrl}/stories/${response.id}`;
 
   return {
     id: response.id,
     mode: response.mode,
+    backendBaseUrl: apiBaseUrl,
     template: response.template_key,
     category: response.category,
     slideCount: response.slide_count,
@@ -134,7 +159,7 @@ function normalizeStoryResponse(
     voiceEngine: request.voiceEngine,
     backgroundSource: request.backgroundSource,
     primaryUrl,
-    htmlUrl: `${API_BASE_URL}/stories/${response.id}/html`,
+    htmlUrl: `${apiBaseUrl}/stories/${response.id}/html`,
     createdAt: response.created_at,
     slides: response.slide_deck.slides.map((slide, index) => ({
       number: index + 1,
@@ -145,8 +170,9 @@ function normalizeStoryResponse(
 }
 
 export async function generateStory(data: StoryFormData): Promise<GeneratedStory> {
+  const apiBaseUrl = getApiBaseUrl(data.mode);
   const payload = await buildStoryPayload(data);
-  const response = await fetch(`${API_BASE_URL}/stories`, {
+  const response = await fetch(`${apiBaseUrl}/stories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -160,11 +186,11 @@ export async function generateStory(data: StoryFormData): Promise<GeneratedStory
   }
 
   const story = (await response.json()) as BackendStoryResponse;
-  return normalizeStoryResponse(story, data);
+  return normalizeStoryResponse(story, data, apiBaseUrl);
 }
 
-export async function fetchLogs(limit: number = 200): Promise<BackendLogsResponse> {
-  const response = await fetch(`${API_BASE_URL}/logs?limit=${limit}`);
+export async function fetchLogs(mode: StoryMode, limit: number = 200): Promise<BackendLogsResponse> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/logs?limit=${limit}`);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch logs' }));
@@ -174,8 +200,8 @@ export async function fetchLogs(limit: number = 200): Promise<BackendLogsRespons
   return response.json();
 }
 
-export async function fetchPromptManagement(): Promise<PromptListing> {
-  const response = await fetch(`${API_BASE_URL}/prompt-management`);
+export async function fetchPromptManagement(mode: StoryMode): Promise<PromptListing> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/prompt-management`);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch prompts' }));
@@ -185,8 +211,30 @@ export async function fetchPromptManagement(): Promise<PromptListing> {
   return response.json();
 }
 
-export async function createPromptVersion(payload: PromptCreatePayload): Promise<PromptVersion> {
-  const response = await fetch(`${API_BASE_URL}/prompt-management`, {
+export async function fetchTemplates(mode: StoryMode): Promise<string[]> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/templates`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch templates' }));
+    throw new Error(error.detail || error.message || 'Failed to fetch templates');
+  }
+
+  return response.json();
+}
+
+export async function fetchTemplateManagement(mode: StoryMode): Promise<TemplateListing> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/template-management`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch templates' }));
+    throw new Error(error.detail || error.message || 'Failed to fetch templates');
+  }
+
+  return response.json();
+}
+
+export async function createPromptVersion(mode: StoryMode, payload: PromptCreatePayload): Promise<PromptVersion> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/prompt-management`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -203,13 +251,14 @@ export async function createPromptVersion(payload: PromptCreatePayload): Promise
 }
 
 export async function updatePromptVersion(
+  mode: StoryMode,
   group: PromptGroup,
   key: string,
   version: string,
   payload: PromptUpdatePayload,
 ): Promise<PromptVersion> {
   const response = await fetch(
-    `${API_BASE_URL}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    `${getApiBaseUrl(mode)}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
     {
       method: 'PUT',
       headers: {
@@ -228,11 +277,12 @@ export async function updatePromptVersion(
 }
 
 export async function activatePromptVersion(
+  mode: StoryMode,
   group: PromptGroup,
   key: string,
   version: string,
 ): Promise<PromptVersion> {
-  const response = await fetch(`${API_BASE_URL}/prompt-management/activate`, {
+  const response = await fetch(`${getApiBaseUrl(mode)}/prompt-management/activate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -249,12 +299,13 @@ export async function activatePromptVersion(
 }
 
 export async function deletePromptVersion(
+  mode: StoryMode,
   group: PromptGroup,
   key: string,
   version: string,
 ): Promise<void> {
   const response = await fetch(
-    `${API_BASE_URL}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    `${getApiBaseUrl(mode)}/prompt-management/${encodeURIComponent(group)}/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
     {
       method: 'DELETE',
     }
@@ -263,5 +314,89 @@ export async function deletePromptVersion(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to delete prompt' }));
     throw new Error(error.detail || error.message || 'Failed to delete prompt');
+  }
+}
+
+export async function createTemplateVersion(
+  mode: StoryMode,
+  payload: TemplateCreatePayload,
+): Promise<TemplateVersion> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/template-management`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to create template' }));
+    throw new Error(error.detail || error.message || 'Failed to create template');
+  }
+
+  return response.json();
+}
+
+export async function updateTemplateVersion(
+  mode: StoryMode,
+  key: string,
+  version: string,
+  payload: TemplateUpdatePayload,
+): Promise<TemplateVersion> {
+  const response = await fetch(
+    `${getApiBaseUrl(mode)}/template-management/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to update template' }));
+    throw new Error(error.detail || error.message || 'Failed to update template');
+  }
+
+  return response.json();
+}
+
+export async function activateTemplateVersion(
+  mode: StoryMode,
+  key: string,
+  version: string,
+): Promise<TemplateVersion> {
+  const response = await fetch(`${getApiBaseUrl(mode)}/template-management/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ key, version }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to activate template' }));
+    throw new Error(error.detail || error.message || 'Failed to activate template');
+  }
+
+  return response.json();
+}
+
+export async function deleteTemplateVersion(
+  mode: StoryMode,
+  key: string,
+  version: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getApiBaseUrl(mode)}/template-management/${encodeURIComponent(key)}/${encodeURIComponent(version)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to delete template' }));
+    throw new Error(error.detail || error.message || 'Failed to delete template');
   }
 }

@@ -16,6 +16,7 @@ import { Attachments } from '@/components/story-generator/attachments';
 import { GenerationLoading } from '@/components/story-generator/generation-loading';
 import { ResultPanel } from '@/components/story-generator/result-panel';
 import { PromptManagement } from '@/components/story-generator/prompt-management';
+import { TemplateManagement } from '@/components/story-generator/template-management';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sparkles, CircleAlert as AlertCircle } from 'lucide-react';
@@ -23,7 +24,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Home() {
-  const [activeSection, setActiveSection] = useState<'story' | 'prompts'>('story');
+  const [activeSection, setActiveSection] = useState<'story' | 'prompts' | 'templates'>('story');
   const [generatedStory, setGeneratedStory] = useState<GeneratedStory | null>(null);
   const [generationStep, setGenerationStep] = useState<'uploading' | 'generating' | 'finalizing'>('uploading');
 
@@ -77,13 +78,13 @@ export default function Home() {
     const currentTemplate = form.getValues('template');
     const validTemplateIds = TEMPLATES.filter((template) => template.mode === mode).map((template) => template.id);
     if (!validTemplateIds.includes(currentTemplate)) {
-      form.setValue('template', mode === 'news' ? 'test-news-1' : 'curious-explainer');
+      form.setValue('template', mode === 'news' ? 'test-news-1' : 'curious-template-1');
     }
 
     const currentCategory = form.getValues('category');
     const validCategoryIds = CATEGORIES.filter((category) => category.mode === mode).map((category) => category.id);
     if (!validCategoryIds.includes(currentCategory)) {
-      form.setValue('category', mode === 'news' ? 'News' : 'curious-science');
+      form.setValue('category', mode === 'news' ? 'News' : 'Education');
     }
   };
 
@@ -97,10 +98,11 @@ export default function Home() {
   };
 
   const environment = process.env.NEXT_PUBLIC_ENVIRONMENT?.toUpperCase() || 'DEVELOPMENT';
+  const activeMode = form.watch('mode');
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navigation environment={environment} />
+      <Navigation environment={environment} mode={activeMode} />
 
       <main className="max-w-5xl mx-auto px-6 py-12">
         <div className="mb-12 text-center">
@@ -112,13 +114,16 @@ export default function Home() {
           </p>
         </div>
 
-        <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as 'story' | 'prompts')}>
-          <TabsList className="mb-8 grid w-full grid-cols-2 bg-zinc-800">
+        <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as 'story' | 'prompts' | 'templates')}>
+          <TabsList className="mb-8 grid w-full grid-cols-3 bg-zinc-800">
             <TabsTrigger value="story" className="data-[state=active]:bg-cyan-600">
               Story Generator
             </TabsTrigger>
             <TabsTrigger value="prompts" className="data-[state=active]:bg-cyan-600">
               Prompt Management
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="data-[state=active]:bg-cyan-600">
+              Template Management
             </TabsTrigger>
           </TabsList>
 
@@ -188,7 +193,11 @@ export default function Home() {
           </TabsContent>
 
           <TabsContent value="prompts">
-            <PromptManagement />
+            <PromptManagement mode={activeMode} />
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <TemplateManagement mode={activeMode} />
           </TabsContent>
         </Tabs>
       </main>
