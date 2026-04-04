@@ -33,8 +33,8 @@ function levelClasses(level: string): string {
 
 function LogRow({ log }: { log: BackendLogEntry }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <div className="w-full max-w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
+      <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-xs font-medium text-zinc-300">{log.logger}</div>
           <div className="text-[11px] text-zinc-500">{new Date(log.timestamp).toLocaleString()}</div>
@@ -43,7 +43,7 @@ function LogRow({ log }: { log: BackendLogEntry }) {
           {log.level}
         </Badge>
       </div>
-      <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-zinc-200">
+      <pre className="w-full max-w-full overflow-hidden whitespace-pre-wrap break-all font-mono text-xs leading-5 text-zinc-200">
         {log.message}
       </pre>
     </div>
@@ -72,10 +72,10 @@ export function LogViewer({ mode }: { mode: StoryMode }) {
           Logs
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl border-zinc-800 bg-zinc-950 p-0 text-zinc-100">
+      <DialogContent className="max-w-5xl overflow-hidden border-zinc-800 bg-zinc-950 p-0 text-zinc-100">
         <DialogHeader className="border-b border-zinc-800 px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <DialogTitle>Backend Logs</DialogTitle>
               <DialogDescription className="mt-1 text-zinc-400">
                 Recent structured logs from the running {mode} backend service.
@@ -109,8 +109,8 @@ export function LogViewer({ mode }: { mode: StoryMode }) {
               {error instanceof Error ? error.message : 'Failed to load logs'}
             </div>
           ) : (
-            <ScrollArea className="h-[65vh] pr-4">
-              <div className="space-y-3">
+            <ScrollArea className="h-[65vh] w-full max-w-full pr-4">
+              <div className="w-full max-w-full space-y-3">
                 {data?.logs.length ? (
                   data.logs
                     .slice()
