@@ -32,6 +32,16 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { CheckCircle2, Code2, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 
@@ -48,6 +58,12 @@ interface TemplateEditorState {
   htmlContent: string;
   active: boolean;
   enabled: boolean;
+}
+
+interface TemplateDeleteState {
+  key: string;
+  version: string;
+  isActive: boolean;
 }
 
 function buildCreateState(family?: TemplateFamily): TemplateEditorState {
@@ -106,6 +122,7 @@ export function TemplateManagement({ mode }: { mode: StoryMode }) {
   const [versionFilter, setVersionFilter] = useState<VersionFilter>('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editor, setEditor] = useState<TemplateEditorState>(buildCreateState());
+  const [deleteTarget, setDeleteTarget] = useState<TemplateDeleteState | null>(null);
 
   const templatesQuery = useQuery({
     queryKey: ['template-management', mode],
@@ -151,10 +168,6 @@ export function TemplateManagement({ mode }: { mode: StoryMode }) {
   const deleteMutation = useMutation({
     mutationFn: ({ key, version }: { key: string; version: string }) =>
       deleteTemplateVersion(mode, key, version),
-    onSuccess: async () => {
-      await invalidateTemplates();
-      toast.success('Template version deleted');
-    },
     onError: (error: Error) => toast.error(error.message),
   });
 
@@ -184,6 +197,44 @@ export function TemplateManagement({ mode }: { mode: StoryMode }) {
     setEditor(buildEditState(version));
     setEditorOpen(true);
   };
+
+  const openDeleteDialog = (version: Pick<TemplateVersion, 'key' | 'version' | 'is_active'>) => {
+    setDeleteTarget({
+      key: version.key,
+      version: version.version,
+      isActive: version.is_active,
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    deleteMutation.mutate(
+      { key: deleteTarget.key, version: deleteTarget.version },
+      {
+        onSuccess: async () => {
+          await invalidateTemplates();
+          toast.success('Template version deleted');
+          setDeleteTarget(null);
+
+          if (
+            editorOpen &&
+            editor.mode === 'edit' &&
+            editor.key === deleteTarget.key &&
+            editor.version === deleteTarget.version
+          ) {
+            setEditorOpen(false);
+          }
+        },
+      }
+    );
+  };
+
+  const editingVersion = templatesQuery.data?.templates
+    ?.flatMap((family) => family.versions)
+    .find((version) => version.key === editor.key && version.version === editor.version);
 
   const handleHtmlUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -343,8 +394,7 @@ export function TemplateManagement({ mode }: { mode: StoryMode }) {
                           type="button"
                           size="sm"
                           variant="destructive"
-                          disabled={version.is_active}
-                          onClick={() => deleteMutation.mutate({ key: version.key, version: version.version })}
+                          onClick={() => openDeleteDialog(version)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
@@ -461,23 +511,74 @@ export function TemplateManagement({ mode }: { mode: StoryMode }) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={submitEditor}
-              className="bg-cyan-600 hover:bg-cyan-700"
-              disabled={
-                createMutation.isPending ||
-                updateMutation.isPending
-              }
-            >
-              {editor.mode === 'create' ? 'Create Version' : 'Save Changes'}
-            </Button>
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {editor.mode === 'edit' ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() =>
+                      openDeleteDialog({
+                        key: editor.key,
+                        version: editor.version,
+                        is_active: editingVersion?.is_active ?? editor.active,
+                      })
+                    }
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Version
+                  </Button>
+                ) : (
+                  <span />
+                )}
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={submitEditor}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                  disabled={
+                    createMutation.isPending ||
+                    updateMutation.isPending
+                  }
+                >
+                  {editor.mode === 'create' ? 'Create Version' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template Version</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              {deleteTarget?.isActive
+                ? 'If this version is active, another version from the same template family will be promoted automatically when available.'
+                : `This will permanently delete ${deleteTarget?.key} ${deleteTarget?.version}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              Close
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Version'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
