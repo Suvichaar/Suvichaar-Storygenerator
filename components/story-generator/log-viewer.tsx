@@ -16,7 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 function levelClasses(level: string): string {
   switch (level) {
@@ -43,9 +42,11 @@ function LogRow({ log }: { log: BackendLogEntry }) {
           {log.level}
         </Badge>
       </div>
-      <pre className="w-full max-w-full overflow-hidden whitespace-pre-wrap break-all font-mono text-xs leading-5 text-zinc-200">
+      <div
+        className="w-full max-w-full overflow-hidden font-mono text-xs leading-5 text-zinc-200 whitespace-pre-wrap [overflow-wrap:anywhere]"
+      >
         {log.message}
-      </pre>
+      </div>
     </div>
   );
 }
@@ -109,8 +110,8 @@ export function LogViewer({ mode }: { mode: StoryMode }) {
               {error instanceof Error ? error.message : 'Failed to load logs'}
             </div>
           ) : (
-            <ScrollArea className="h-[65vh] w-full max-w-full pr-4">
-              <div className="w-full max-w-full space-y-3">
+            <div className="h-[65vh] w-full max-w-full overflow-x-hidden overflow-y-auto pr-4">
+              <div className="w-full min-w-0 max-w-full space-y-3">
                 {data?.logs.length ? (
                   data.logs
                     .slice()
@@ -122,7 +123,7 @@ export function LogViewer({ mode }: { mode: StoryMode }) {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       </DialogContent>
