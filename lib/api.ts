@@ -23,7 +23,7 @@ const FALLBACK_NEWS_API_BASE_URL =
 const FALLBACK_CURIOUS_API_BASE_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:8001'
-    : 'https://curious-service.azurewebsites.net';
+    : 'https://curious-engine-service.azurewebsites.net';
 
 function getApiBaseUrl(mode: StoryMode): string {
   if (mode === 'curious') {
