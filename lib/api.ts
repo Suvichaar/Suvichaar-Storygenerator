@@ -169,10 +169,72 @@ function normalizeStoryResponse(
   };
 }
 
+type StoryJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+interface StoryJobAck {
+  id: string;
+  status: StoryJobStatus;
+}
+
+interface StoryJobStatusResponse {
+  id: string;
+  status: StoryJobStatus;
+  error?: string | null;
+  story?: BackendStoryResponse | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const STORY_POLL_INTERVAL_MS = 3000;
+const STORY_POLL_MAX_WAIT_MS = 15 * 60 * 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pollStoryJob(
+  apiBaseUrl: string,
+  storyId: string,
+): Promise<BackendStoryResponse> {
+  const startedAt = Date.now();
+
+  while (true) {
+    if (Date.now() - startedAt > STORY_POLL_MAX_WAIT_MS) {
+      throw new Error('Story generation timed out. The job may still be running on the server.');
+    }
+
+    const response = await fetch(`${apiBaseUrl}/stories/${storyId}/status`, {
+      cache: 'no-store',
+    });
+
+    if (response.status === 404 && Date.now() - startedAt < 5000) {
+      // Job may not be registered yet on a freshly spun-up worker — wait briefly.
+      await sleep(STORY_POLL_INTERVAL_MS);
+      continue;
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to fetch story status' }));
+      throw new Error(error.detail || error.message || 'Failed to fetch story status');
+    }
+
+    const job = (await response.json()) as StoryJobStatusResponse;
+
+    if (job.status === 'completed' && job.story) {
+      return job.story;
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error || 'Story generation failed');
+    }
+
+    await sleep(STORY_POLL_INTERVAL_MS);
+  }
+}
+
 export async function generateStory(data: StoryFormData): Promise<GeneratedStory> {
   const apiBaseUrl = getApiBaseUrl(data.mode);
   const payload = await buildStoryPayload(data);
-  const response = await fetch(`${apiBaseUrl}/stories`, {
+  const submitResponse = await fetch(`${apiBaseUrl}/stories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -180,12 +242,13 @@ export async function generateStory(data: StoryFormData): Promise<GeneratedStory
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Failed to generate story' }));
-    throw new Error(error.detail || error.message || 'Failed to generate story');
+  if (!submitResponse.ok) {
+    const error = await submitResponse.json().catch(() => ({ detail: 'Failed to submit story job' }));
+    throw new Error(error.detail || error.message || 'Failed to submit story job');
   }
 
-  const story = (await response.json()) as BackendStoryResponse;
+  const ack = (await submitResponse.json()) as StoryJobAck;
+  const story = await pollStoryJob(apiBaseUrl, ack.id);
   return normalizeStoryResponse(story, data, apiBaseUrl);
 }
 
